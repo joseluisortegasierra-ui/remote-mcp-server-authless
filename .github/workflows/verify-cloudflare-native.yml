@@ -3,6 +3,12 @@ name: Verificar Cloudflare nativo JLOSIC
 on:
   push:
     branches: [main]
+    paths:
+      - "src/**"
+      - "package.json"
+      - "package-lock.json"
+      - "wrangler.jsonc"
+      - ".github/workflows/verify-cloudflare-native.yml"
   workflow_dispatch:
 
 permissions:
@@ -16,8 +22,19 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 6
     steps:
+      - name: Registrar inicio de verificación
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh issue comment 3 --repo "$GITHUB_REPOSITORY" --body "## Verificación Cloudflare iniciada
+
+- Commit: \`$GITHUB_SHA\`
+- Ejecución: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+- Ventana: 6 intentos de 20 segundos."
+
       - name: Esperar DNS, certificado y Worker
         id: wait_worker
         continue-on-error: true
@@ -25,14 +42,14 @@ jobs:
         run: |
           set -u
           : > attempts.log
-          for attempt in $(seq 1 20); do
+          for attempt in $(seq 1 6); do
             stamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-            code=$(curl -L --silent --show-error --max-time 20 -o health.json -w '%{http_code}' https://mcp.jlos.uk/health || true)
+            code=$(curl -L --silent --show-error --max-time 15 -o health.json -w '%{http_code}' https://mcp.jlos.uk/health || true)
             printf '%s intento=%s http=%s\n' "$stamp" "$attempt" "$code" | tee -a attempts.log
             if [ "$code" = "200" ] && grep -Eq '"version"[[:space:]]*:[[:space:]]*"2\.0\.2"' health.json; then
               exit 0
             fi
-            sleep 30
+            sleep 20
           done
           exit 1
 
@@ -70,7 +87,7 @@ jobs:
             state="AUN_NO_ACCESIBLE"
           fi
           {
-            echo "## Verificación automática Cloudflare JLOSIC"
+            echo "## Resultado de verificación Cloudflare JLOSIC"
             echo
             echo "- Estado: **$state**"
             echo "- Commit: \`${GITHUB_SHA}\`"
