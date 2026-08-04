@@ -1,14 +1,36 @@
-/**
- * For more details on how to configure Wrangler, refer to:
- * https://developers.cloudflare.com/workers/wrangler/configuration/
- */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "remote-mcp-server-authless",
 	"main": "src/index.ts",
-	"compatibility_date": "2026-07-02",
+	"compatibility_date": "2026-08-03",
 	"compatibility_flags": ["nodejs_compat"],
+	"workers_dev": true,
 	"observability": {
-		"enabled": true,
+		"enabled": true
 	},
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "JLOSIC_NODES",
+				"class_name": "JlosicNodeAgent"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["JlosicNodeAgent"]
+		}
+	],
+	"vars": {
+		"SERVICE_LABEL": "JLOSIC Direct Mesh",
+		"MESH_VERSION": "2.0.2",
+		"DEPLOYMENT_CHANNEL": "cloudflare-native-github-integration",
+		"DEPLOYMENT_MARKER": "2026-08-04T08:23:00+02:00"
+	},
+	"routes": [
+		{ "pattern": "jlos.uk", "custom_domain": true },
+		{ "pattern": "www.jlos.uk", "custom_domain": true },
+		{ "pattern": "mcp.jlos.uk", "custom_domain": true }
+	]
 }
