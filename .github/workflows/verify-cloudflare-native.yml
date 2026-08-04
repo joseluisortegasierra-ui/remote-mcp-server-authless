@@ -9,6 +9,7 @@ on:
       - "package-lock.json"
       - "wrangler.jsonc"
       - ".github/workflows/verify-cloudflare-native.yml"
+  pull_request:
   workflow_dispatch:
 
 permissions:
