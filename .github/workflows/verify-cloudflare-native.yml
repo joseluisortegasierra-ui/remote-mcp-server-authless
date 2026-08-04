@@ -1,0 +1,106 @@
+name: Verificar Cloudflare nativo JLOSIC
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: verify-cloudflare-native
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Esperar DNS, certificado y Worker
+        id: wait_worker
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -u
+          : > attempts.log
+          for attempt in $(seq 1 20); do
+            stamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            code=$(curl -L --silent --show-error --max-time 20 -o health.json -w '%{http_code}' https://mcp.jlos.uk/health || true)
+            printf '%s intento=%s http=%s\n' "$stamp" "$attempt" "$code" | tee -a attempts.log
+            if [ "$code" = "200" ] && grep -Eq '"version"[[:space:]]*:[[:space:]]*"2\.0\.2"' health.json; then
+              exit 0
+            fi
+            sleep 30
+          done
+          exit 1
+
+      - name: Probar panel, redirección, malla y capacidades
+        id: verify_routes
+        if: steps.wait_worker.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 20 https://jlos.uk/ > panel.html
+          redirect=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 20 https://www.jlos.uk/)
+          test "$redirect" = "308"
+          curl --fail --silent --show-error --max-time 20 https://mcp.jlos.uk/mesh > mesh.json
+          curl --fail --silent --show-error --max-time 20 https://mcp.jlos.uk/.well-known/jlosic-capabilities.json > capabilities.json
+          grep -Eq '"version"[[:space:]]*:[[:space:]]*"2\.0\.2"' health.json
+          grep -Eq '"central_dispatcher"[[:space:]]*:[[:space:]]*false' mesh.json
+          grep -Eq '"shared_chain"[[:space:]]*:[[:space:]]*false' mesh.json
+          grep -Eq '"topology"[[:space:]]*:[[:space:]]*"five_direct_independent_nodes"' capabilities.json
+          grep -q 'Ahora · JLOSIC' panel.html
+
+      - name: Registrar evidencia en el issue operativo
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WAIT_OUTCOME: ${{ steps.wait_worker.outcome }}
+          ROUTES_OUTCOME: ${{ steps.verify_routes.outcome }}
+        shell: bash
+        run: |
+          if [ "$WAIT_OUTCOME" = "success" ] && [ "$ROUTES_OUTCOME" = "success" ]; then
+            state="DESPLEGADO_Y_VERIFICADO"
+          elif [ "$WAIT_OUTCOME" = "success" ]; then
+            state="WORKER_ACTIVO_CON_RUTAS_PENDIENTES"
+          else
+            state="AUN_NO_ACCESIBLE"
+          fi
+          {
+            echo "## Verificación automática Cloudflare JLOSIC"
+            echo
+            echo "- Estado: **$state**"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Espera de Worker: \`$WAIT_OUTCOME\`"
+            echo "- Rutas y topología: \`$ROUTES_OUTCOME\`"
+            echo "- Ejecución: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+            if [ -f health.json ]; then
+              echo '```json'
+              head -c 2000 health.json
+              echo
+              echo '```'
+            fi
+            if [ -f attempts.log ]; then
+              echo '<details><summary>Intentos</summary>'
+              echo
+              echo '```text'
+              cat attempts.log
+              echo '```'
+              echo '</details>'
+            fi
+          } > report.md
+          gh issue comment 3 --repo "$GITHUB_REPOSITORY" --body-file report.md
+
+      - name: Exigir verificación completa
+        if: always()
+        env:
+          WAIT_OUTCOME: ${{ steps.wait_worker.outcome }}
+          ROUTES_OUTCOME: ${{ steps.verify_routes.outcome }}
+        shell: bash
+        run: |
+          test "$WAIT_OUTCOME" = "success"
+          test "$ROUTES_OUTCOME" = "success"
