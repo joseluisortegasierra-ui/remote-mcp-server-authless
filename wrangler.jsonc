@@ -26,11 +26,10 @@
 		"SERVICE_LABEL": "JLOSIC Direct Mesh",
 		"MESH_VERSION": "2.0.2",
 		"DEPLOYMENT_CHANNEL": "cloudflare-native-github-integration",
-		"DEPLOYMENT_MARKER": "2026-08-04T10:12:00+02:00"
+		"DEPLOYMENT_MARKER": "2026-08-04T11:06:00+02:00"
 	},
 	"routes": [
 		{ "pattern": "jlos.uk", "custom_domain": true },
-		{ "pattern": "www.jlos.uk", "custom_domain": true },
-		{ "pattern": "mcp.jlos.uk", "custom_domain": true }
+		{ "pattern": "www.jlos.uk", "custom_domain": true }
 	]
 }
