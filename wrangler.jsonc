@@ -1,7 +1,7 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "remote-mcp-server-authless",
-	"main": "src/index.ts",
+	"main": "src/entry.ts",
 	"compatibility_date": "2026-08-03",
 	"compatibility_flags": ["nodejs_compat"],
 	"workers_dev": true,
@@ -13,6 +13,10 @@
 			{
 				"name": "JLOSIC_NODES",
 				"class_name": "JlosicNodeAgent"
+			},
+			{
+				"name": "X_OAUTH",
+				"class_name": "XAuthVault"
 			}
 		]
 	},
@@ -20,13 +24,20 @@
 		{
 			"tag": "v1",
 			"new_sqlite_classes": ["JlosicNodeAgent"]
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": ["XAuthVault"]
 		}
 	],
 	"vars": {
 		"SERVICE_LABEL": "JLOSIC Direct Mesh",
-		"MESH_VERSION": "2.0.2",
+		"MESH_VERSION": "2.1.0",
 		"DEPLOYMENT_CHANNEL": "cloudflare-native-github-integration",
-		"DEPLOYMENT_MARKER": "2026-08-05T01:20:00+02:00"
+		"DEPLOYMENT_MARKER": "2026-08-05T04:05:00+02:00",
+		"X_REDIRECT_URI": "https://jlos.uk/x/callback",
+		"X_ACCOUNT_HANDLE": "JLOSICContexto",
+		"X_POSTING_ENABLED": "false"
 	},
 	"routes": [
 		{ "pattern": "jlos.uk", "custom_domain": true },
