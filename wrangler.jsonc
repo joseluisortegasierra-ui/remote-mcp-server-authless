@@ -32,14 +32,17 @@
 	],
 	"vars": {
 		"SERVICE_LABEL": "JLOSIC Direct Mesh",
-		"MESH_VERSION": "2.1.1",
+		"MESH_VERSION": "2.1.2",
 		"DEPLOYMENT_CHANNEL": "cloudflare-native-github-integration",
-		"DEPLOYMENT_MARKER": "2026-08-05T05:08:00+02:00",
+		"DEPLOYMENT_MARKER": "2026-08-05T05:32:00+02:00",
 		"X_REDIRECT_URI": "https://jlos.uk/x/callback",
 		"X_ACCOUNT_HANDLE": "JLOSICContexto",
 		"X_POSTING_ENABLED": "false"
 	},
 	"routes": [
+		{ "pattern": "jlos.uk/x*", "zone_name": "jlos.uk" },
+		{ "pattern": "www.jlos.uk/x*", "zone_name": "jlos.uk" },
+		{ "pattern": "jlos.uk/health*", "zone_name": "jlos.uk" },
 		{ "pattern": "jlos.uk", "custom_domain": true },
 		{ "pattern": "www.jlos.uk", "custom_domain": true }
 	]
