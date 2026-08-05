@@ -1,0 +1,61 @@
+name: Publicar cola editorial en X
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "x-queue/pending/*.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: jlosic-x-publisher
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Publicar archivos nuevos
+        env:
+          PUBLISHER_TOKEN: ${{ secrets.JLOSIC_INGEST_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "$PUBLISHER_TOKEN" ]] || { echo "Falta JLOSIC_INGEST_TOKEN"; exit 1; }
+          BEFORE="${{ github.event.before }}"
+          if [[ "$BEFORE" == "0000000000000000000000000000000000000000" ]]; then
+            FILES="$(git ls-files 'x-queue/pending/*.json')"
+          else
+            FILES="$(git diff --name-only --diff-filter=AM "$BEFORE" "${{ github.sha }}" -- 'x-queue/pending/*.json')"
+          fi
+          [[ -n "$FILES" ]] || exit 0
+          while IFS= read -r file; do
+            [[ -n "$file" ]] || continue
+            jq -e '.posts | type == "array" and length >= 2' "$file" >/dev/null
+            RESPONSE="$(curl -fsS -X POST 'https://jlos.uk/api/x/thread' \
+              -H "Authorization: Bearer $PUBLISHER_TOKEN" \
+              -H 'Content-Type: application/json' \
+              --data-binary "@$file")"
+            jq -e '.published == true and (.ids | length >= 2)' <<<"$RESPONSE" >/dev/null
+            mkdir -p x-queue/sent
+            base="$(basename "$file")"
+            printf '%s\n' "$RESPONSE" > "x-queue/sent/${base%.json}.result.json"
+            git mv "$file" "x-queue/sent/$base"
+          done <<< "$FILES"
+
+      - name: Registrar resultados
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet && git diff --cached --quiet; then exit 0; fi
+          git config user.name "JLOSIC X Publisher"
+          git config user.email "actions@users.noreply.github.com"
+          git add x-queue
+          git commit -m "X: archiva publicaciones ejecutadas [skip ci]"
+          git push
